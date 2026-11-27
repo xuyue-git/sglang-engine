@@ -14,31 +14,33 @@ that layout. These two ops do, with MuxServe-vLLM's arguments:
         decode attention of one query token per sequence over its head-wise blocks
 
 ``csrc/`` holds the sources: MuxServe-vLLM's files unchanged (SOURCE_MANIFEST.json gives
-each one's origin and sha256; LICENSE is vLLM's Apache-2.0) and the Python bindings. The
-extension is compiled on first use with torch's C++ extension loader (nvcc on PATH,
--O2 -std=c++20, for the visible GPUs or TORCH_CUDA_ARCH_LIST) and cached; build it ahead
-of time with ``python -m sglang.kernels.ops.attention.headwise``.
+each one's origin and sha256; LICENSE is vLLM's Apache-2.0) and the Python bindings. As
+MuxServe-vLLM's install compiles its kernels, they are compiled ahead of time, once, into
+the extension ``_C`` next to this file:
+
+    python -m sglang.kernels.ops.attention.headwise
+
+(nvcc on PATH; -O2 -std=c++20; TORCH_CUDA_ARCH_LIST, or else 8.0 for the A100). Importing
+this package loads that extension, so nothing is compiled or locked while a server runs.
 """
 
-from functools import lru_cache
-from pathlib import Path
+import importlib
 
-_CSRC = Path(__file__).resolve().parent / "csrc"
-_SOURCES = ("bindings.cpp", "cache_headwise.cu", "attention_headwise_kernels.cu")
-_FLAGS = ["-O2", "-std=c++20"]
+import torch  # noqa: F401  (the extension links against torch's libraries)
+
+try:
+    _C = importlib.import_module(f"{__name__}._C")
+except ImportError as error:  # not built yet
+    _C, _NOT_BUILT = None, error
 
 
-@lru_cache(maxsize=None)
 def _ops():
-    from torch.utils.cpp_extension import load
-
-    return load(
-        name="sglang_muxserve_headwise",
-        sources=[str(_CSRC / name) for name in _SOURCES],
-        extra_include_paths=[str(_CSRC)],
-        extra_cflags=_FLAGS,
-        extra_cuda_cflags=_FLAGS,
-    )
+    if _C is None:
+        raise RuntimeError(
+            "MuxServe's head-wise ops are not built: build them once with "
+            f"`python -m sglang.kernels.ops.attention.headwise` ({_NOT_BUILT})"
+        )
+    return _C
 
 
 def headwise_reshape_and_cache(key, value, key_cache, value_cache, slot_mapping):
@@ -72,6 +74,3 @@ def single_query_cached_kv_headwise_attention(
         alibi_slopes,
     )
 
-
-if __name__ == "__main__":
-    print(f"built {_ops().__file__}")
