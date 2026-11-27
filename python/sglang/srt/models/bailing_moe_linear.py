@@ -101,12 +101,10 @@ if _is_cuda:
     from sglang.kernels.ops.quantization.awq_dequantize import awq_dequantize
 elif _is_cpu and _is_cpu_amx_available:
     pass
-elif _is_hip:
+else:
     from sglang.kernels.ops.quantization.awq_triton import (
         awq_dequantize_triton as awq_dequantize,
     )
-else:
-    from vllm._custom_ops import awq_dequantize
 
 if _is_hip:
     pass

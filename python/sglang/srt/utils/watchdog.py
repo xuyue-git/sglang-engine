@@ -118,12 +118,23 @@ class WatchdogRaw:
         self.dump_info = dump_info
 
         self.parent_process = psutil.Process().parent()
-        t = threading.Thread(target=self._watchdog_thread, daemon=True)
-        t.start()
+        self._stop_event = threading.Event()
+        self._thread = threading.Thread(target=self._watchdog_thread, daemon=True)
+        self._thread.start()
+
+    def stop(self, timeout: float = 5.0) -> None:
+        """Join monitoring before releasing callbacks that may own CUDA state."""
+        self._stop_event.set()
+        self._thread.join(timeout=timeout)
+        if self._thread.is_alive():
+            raise RuntimeError(f"{self.debug_name} watchdog did not stop")
+        self.get_counter = lambda: 0
+        self.is_active = lambda: False
+        self.dump_info = None
 
     def _watchdog_thread(self):
         try:
-            while True:
+            while not self._stop_event.is_set():
                 self._watchdog_once()
         except Exception as e:
             logger.error(
@@ -134,7 +145,7 @@ class WatchdogRaw:
         watchdog_last_counter = 0
         watchdog_last_time = time.perf_counter()
 
-        while True:
+        while not self._stop_event.is_set():
             current = time.perf_counter()
             if self.is_active():
                 current_counter = self.get_counter()
@@ -144,7 +155,13 @@ class WatchdogRaw:
                 else:
                     watchdog_last_counter = current_counter
                     watchdog_last_time = current
-            time.sleep(self.watchdog_timeout / 2)
+            if self._stop_event.wait(self.watchdog_timeout / 2):
+                return
+        else:
+            return
+
+        if self._stop_event.is_set():
+            return
 
         if self.dump_info is not None and (info_msg := self.dump_info()):
             logger.error(f"{self.debug_name} debug info:\n{info_msg}")
@@ -159,8 +176,8 @@ class WatchdogRaw:
 
         if not self.soft:
             # Wait for some time so that the parent process can print the error.
-            time.sleep(5)
-            self.parent_process.send_signal(signal.SIGQUIT)
+            if not self._stop_event.wait(5):
+                self.parent_process.send_signal(signal.SIGQUIT)
 
 
 class SubprocessWatchdog:

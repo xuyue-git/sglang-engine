@@ -5690,6 +5690,9 @@ class Scheduler(
 
 
 def dispatch_event_loop(scheduler: Scheduler):
+    from muxserve.flexserver.sglang_hooks import enabled, run_controlled_scheduler
+    if enabled():
+        return run_controlled_scheduler(scheduler)
     # The live PP property asserts before torch.distributed init (MLX stub).
     disaggregation_mode: DisaggregationMode = scheduler.disaggregation_mode
     if disaggregation_mode == DisaggregationMode.NULL:

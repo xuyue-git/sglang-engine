@@ -73,7 +73,6 @@ if _is_musa:
     from sglang.kernels.ops.quantization import sgl_per_token_group_quant_8bit
 
 if _is_hip:
-    _has_vllm = False
     if _use_aiter:
         try:
             from aiter import (  # v0.1.3
@@ -83,14 +82,6 @@ if _is_hip:
             )
         except ImportError:
             raise ImportError("aiter is required when SGLANG_USE_AITER is set to True")
-    else:
-        try:
-            import vllm._C  # noqa: F401
-
-            _has_vllm = True
-        except ImportError:
-            # Fallback: vllm not available, will use native PyTorch implementation
-            _has_vllm = False
 
 if _is_musa:
 
@@ -1916,18 +1907,12 @@ if _is_hip:
                 )
                 if _use_aiter:
                     dynamic_per_token_scaled_quant(output, input, scale)
-                elif _has_vllm:
-                    torch.ops._C.dynamic_per_token_scaled_fp8_quant(
-                        output, input.contiguous(), scale, None
-                    )
                 else:
                     _native_dynamic_per_token_quant_fp8(output, input, scale)
             else:
                 scale = torch.zeros(1, device=input.device, dtype=torch.float32)
                 if _use_aiter:
                     dynamic_per_tensor_quant(output, input, scale)
-                elif _has_vllm:
-                    torch.ops._C.dynamic_scaled_fp8_quant(output, input, scale)
                 else:
                     _native_dynamic_per_tensor_quant_fp8(output, input, scale)
         else:
@@ -1937,8 +1922,6 @@ if _is_hip:
             )
             if _use_aiter:
                 static_per_tensor_quant(output, input, scale)
-            elif _has_vllm:
-                torch.ops._C.static_scaled_fp8_quant(output, input, scale)
             else:
                 _native_static_quant_fp8(output, input, scale)
 

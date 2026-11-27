@@ -594,6 +594,7 @@ class MetadataBuffers:
 
 
 class TransferBackend(Enum):
+    SHARED_HEADWISE = "shared_headwise"
     MOONCAKE = "mooncake"
     MORI = "mori"
     NIXL = "nixl"
@@ -640,6 +641,9 @@ def get_kv_class(
     if class_type == KVClassType.KVARGS:
         return KVArgs
 
+    if transfer_backend == TransferBackend.SHARED_HEADWISE:
+        from muxserve.flexserver.sglang_pd import shared_kv_class
+        return shared_kv_class(class_type)
     if transfer_backend == TransferBackend.MOONCAKE:
         from sglang.srt.disaggregation.mooncake import (
             MooncakeKVBootstrapServer,

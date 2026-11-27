@@ -39,6 +39,12 @@ if TYPE_CHECKING:
 
 ATTENTION_BACKENDS = {}
 
+def _create_headwise_backend(runner):
+    from muxserve.flexserver.sglang_attention import HeadwiseAttentionBackend
+    return HeadwiseAttentionBackend(runner)
+
+ATTENTION_BACKENDS["headwise"] = _create_headwise_backend
+
 
 def register_attention_backend(name):
     def decorator(fn):

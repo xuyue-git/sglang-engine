@@ -891,6 +891,9 @@ class ModelRunner:
 
     def alloc_memory_pool(self, memory_pool_config: Optional[MemoryPoolConfig] = None):
         """Allocate KV cache memory pools only (no backends or cuda graphs)."""
+        from muxserve.flexserver.sglang_hooks import enabled, allocate_shared_memory
+        if enabled():
+            return allocate_shared_memory(self, memory_pool_config)
         if memory_pool_config is not None:
             self.memory_pool_config = memory_pool_config
 
@@ -1633,6 +1636,8 @@ class ModelRunner:
         reinit_attn_backend: bool = False,
         split_forward_count: int = 1,
     ) -> ModelRunnerOutput:
+        from muxserve.flexserver.sglang_hooks import assert_forward_permitted
+        assert_forward_permitted(self, forward_batch)
         # Deprecated kwarg: pre-planners mark the batch themselves now.
         forward_batch.apply_deprecated_skip_attn_backend_init(skip_attn_backend_init)
 
@@ -1721,6 +1726,8 @@ class ModelRunner:
         if get_exec().moe.elastic_ep_backend is not None:
             self.maybe_join_ep_ranks()
 
+        from muxserve.flexserver.sglang_hooks import finish_forward_timing
+        finish_forward_timing(self)
         return output
 
     def _maybe_execute_deferred_mamba_cow_and_clear(

@@ -3240,27 +3240,3 @@ def in_the_same_node_as(pg: ProcessGroup, source_rank: int = 0) -> List[bool]:
     return [x == 1 for x in is_in_the_same_node.tolist()]
 
 
-vllm_get_pp_group = None
-vllm_get_tp_group = None
-vllm_get_world_group = None
-
-
-def monkey_patch_vllm_parallel_state(reverse: bool = False):
-    try:
-        import vllm.distributed.parallel_state as vllm_parallel_state
-    except ImportError:
-        return
-
-    global vllm_get_pp_group, vllm_get_tp_group, vllm_get_world_group
-    if vllm_get_pp_group is None:
-        vllm_get_pp_group = vllm_parallel_state.get_pp_group
-        vllm_get_tp_group = vllm_parallel_state.get_tp_group
-        vllm_get_world_group = vllm_parallel_state.get_world_group
-    if reverse:
-        setattr(vllm_parallel_state, "get_pp_group", vllm_get_pp_group)
-        setattr(vllm_parallel_state, "get_tp_group", vllm_get_tp_group)
-        setattr(vllm_parallel_state, "get_world_group", vllm_get_world_group)
-    else:
-        setattr(vllm_parallel_state, "get_pp_group", get_pp_group)
-        setattr(vllm_parallel_state, "get_tp_group", get_tp_group)
-        setattr(vllm_parallel_state, "get_world_group", get_world_group)

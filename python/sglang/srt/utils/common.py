@@ -2166,20 +2166,6 @@ def suppress_noisy_warnings():
 def suppress_other_loggers():
     suppress_noisy_warnings()
 
-    try:
-        from vllm.logger import logger as vllm_default_logger
-    except ImportError:
-        return
-
-    vllm_default_logger.setLevel(logging.WARN)
-    logging.getLogger("vllm.distributed.device_communicators.pynccl").setLevel(
-        logging.WARN
-    )
-    logging.getLogger("vllm.distributed.device_communicators.shm_broadcast").setLevel(
-        logging.WARN
-    )
-    logging.getLogger("vllm.config").setLevel(logging.ERROR)
-
 
 _KERNEL_VERSION_CHECK_PACKAGES = frozenset(
     {

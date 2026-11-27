@@ -106,7 +106,7 @@ if _is_cuda or _is_xpu or _is_musa:
         rmsnorm,
     )
 _has_aiter_layer_norm = False
-_has_vllm_rms_norm = False
+_has_fused_rms_norm = False
 _has_rocm_triton_gemma_rms_norm = False
 if _use_aiter:
     import aiter as _aiter
@@ -124,15 +124,7 @@ if _use_aiter:
         from aiter import rmsnorm2d_fwd_with_add as fused_add_rms_norm
 
     _has_aiter_layer_norm = True  # aiter provides the layer_norm functions
-    _has_vllm_rms_norm = True  # aiter provides the rms_norm functions
-elif _is_hip:
-    try:
-        from vllm._custom_ops import fused_add_rms_norm, rms_norm
-
-        _has_vllm_rms_norm = True
-    except ImportError:
-        # Fallback: vllm not available, will use forward_native
-        _has_vllm_rms_norm = False
+    _has_fused_rms_norm = True  # aiter provides the rms_norm functions
 
 if _is_hip:
     try:
@@ -733,8 +725,8 @@ class RMSNorm(BaseFusedOp):
         post_residual_addition: Optional[torch.Tensor] = None,
         quant_linear: Optional[nn.Module] = None,
     ) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
-        # Fallback to native implementation if vllm is not available
-        if not _has_vllm_rms_norm:
+        # Fallback to native implementation without fused rms_norm kernels
+        if not _has_fused_rms_norm:
             return self.forward_native(x, residual, post_residual_addition)
 
         if is_batch_invariant_mode_enabled():
@@ -1153,7 +1145,7 @@ class GemmaRMSNorm(BaseFusedOp):
                 )
             return rocm_triton_gemma_rmsnorm(x, self.weight.data, self.variance_epsilon)
 
-        if not _has_vllm_rms_norm:
+        if not _has_fused_rms_norm:
             return self.forward_native(x, residual, post_residual_addition)
 
         if _use_aiter:
@@ -1162,7 +1154,7 @@ class GemmaRMSNorm(BaseFusedOp):
             return self.forward_native(x, residual, post_residual_addition)
         else:
             w = self.gemma_weight
-            # vllm API: rms_norm(out, input, weight, eps) -> None (in-place)
+            # Kernel API: rms_norm(out, input, weight, eps) -> None (in-place)
             #           fused_add_rms_norm(out, input, residual_out, residual, weight, eps)
             if not x.is_contiguous():
                 x = x.contiguous()

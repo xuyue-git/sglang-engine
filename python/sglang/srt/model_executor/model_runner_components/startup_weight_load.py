@@ -11,7 +11,6 @@ from torch import nn
 
 from sglang.srt.configs.device_config import DeviceConfig
 from sglang.srt.configs.load_config import LoadConfig, LoadFormat
-from sglang.srt.distributed.parallel_state import monkey_patch_vllm_parallel_state
 from sglang.srt.model_executor.cuda_graph_config import Backend, Phase
 from sglang.srt.model_loader.loader import DefaultModelLoader
 from sglang.srt.model_loader.utils import get_model_architecture
@@ -507,7 +506,6 @@ class StartupWeightLoadManager:
         manifest = ModelStorageManifest.capture(self._model)
         startup_prefetch_active = self._prepare_prefetch_for_commit()
         commit_started_at = time.perf_counter()
-        monkey_patch_vllm_parallel_state()
         self._loader.commit_model_weights(
             model=self._model,
             model_config=self._model_config,
@@ -531,7 +529,6 @@ class StartupWeightLoadManager:
                 "Startup weight commit did not replace capture-safe dummy values: "
                 f"{preview}"
             )
-        monkey_patch_vllm_parallel_state(reverse=True)
         self._stop_prefetch()
         self._state = StartupWeightLoadState.READY
         logger.info(

@@ -635,6 +635,8 @@ class DecodePreallocQueue(DecodeHiCachePreallocMixin):
                         kv_pool.page_size,
                         slot_layer_ids=slot_layer_ids,
                     )
+        if self.transfer_backend.value == "shared_headwise":
+            kv_manager.attach_metadata_buffers(self.metadata_buffers)
         return kv_manager
 
     def add(

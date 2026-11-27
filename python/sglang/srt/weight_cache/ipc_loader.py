@@ -305,6 +305,9 @@ class IpcModelLoader(BaseModelLoader):
                 delattr(obj, leaf_name)
             obj.register_buffer(leaf_name, tensor)
 
+    def _initialize_model(self, model_config, quant_config):
+        return _initialize_model(model_config, self.load_config, quant_config)
+
     def _load_zero_copy_mode(
         self,
         model_config,
@@ -325,11 +328,7 @@ class IpcModelLoader(BaseModelLoader):
         # but without allocating actual storage.
         with set_default_torch_dtype(model_config.dtype):
             with torch.device("meta"):
-                model = _initialize_model(
-                    model_config,
-                    self.load_config,
-                    quant_config,
-                )
+                model = self._initialize_model(model_config, quant_config)
 
         # Build lookup dicts of existing parameter/buffer names in the
         # meta-device model. Post-quantization parameters (e.g. weight_scale

@@ -186,6 +186,12 @@ class EagerRunner(BaseRunner):
         """Copy the live batch into the fixed-max eager static buffers (sliced to
         this batch's shape) — the eager counterpart of the cuda-graph runners'
         load_batch."""
+        from muxserve.flexserver.sglang_hooks import enabled
+
+        if enabled():
+            # A controlled grant binds this exact batch and its logical write
+            # locations. Keep both identities through eager metadata and layers.
+            return forward_batch
         if envs.SGLANG_EAGER_INPUT_NO_COPY.get():
             return replace(forward_batch)
         raw_bs = forward_batch.batch_size

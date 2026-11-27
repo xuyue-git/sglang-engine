@@ -540,8 +540,17 @@ class TpModelWorker(BaseTpWorker):
         self.model_runner.hisparse_coordinator = coordinator
 
     def get_worker_info(self):
+        from muxserve.flexserver.sglang_hooks import enabled as muxserve_enabled
+
+        # Native admission reserves another slot. These are logical IDs only;
+        # the controller still limits every actual forward to context 2048.
+        context_admission_len = (
+            self.model_config.context_len + 1
+            if muxserve_enabled()
+            else self.model_config.context_len - 1
+        )
         max_req_len = min(
-            self.model_config.context_len - 1,
+            context_admission_len,
             self.model_runner.effective_max_total_num_tokens * self.ps.attn_dcp_size
             - 1,
         )
@@ -553,7 +562,8 @@ class TpModelWorker(BaseTpWorker):
             self.model_runner.max_running_requests,
             get_schedule().max_queued_requests,
             max_req_len,
-            max_req_len - 5,
+            (min(self.model_config.context_len - 1, max_req_len - 1)
+             if muxserve_enabled() else max_req_len - 5),
             self.random_seed,
             self.device,
             self.model_runner.forward_stream,

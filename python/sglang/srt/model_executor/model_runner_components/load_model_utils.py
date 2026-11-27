@@ -22,7 +22,6 @@ from sglang.srt.debug_utils.tensor_dump_forward_hook import (
     register_forward_hook_for_model,
 )
 from sglang.srt.distributed import get_tp_group
-from sglang.srt.distributed.parallel_state import monkey_patch_vllm_parallel_state
 from sglang.srt.model_loader.loader import get_model_loader
 from sglang.srt.model_loader.remote_instance_weight_loader_utils import (
     RemoteInstanceWeightLoaderBackend,
@@ -262,9 +261,6 @@ def load_model_with_memory_saver(
     memory_saver_adapter: Any,
     is_draft_worker: bool,
 ) -> LoadedModel:
-    # Remove monkey_patch when linear.py quant remove dependencies with vllm
-    monkey_patch_vllm_parallel_state()
-
     if not is_draft_worker:
         architectures = model_config.hf_config.architectures or []
         is_qwen4_exp = "Qwen4ExpForConditionalGeneration" in architectures
@@ -354,7 +350,6 @@ def load_model_with_memory_saver(
     # To avoid conflict with memory_saver_adapter.region, empty_cache operation is now moved here.
     if _is_npu:
         torch.npu.empty_cache()
-    monkey_patch_vllm_parallel_state(reverse=True)
 
     return LoadedModel(
         loader=loader,

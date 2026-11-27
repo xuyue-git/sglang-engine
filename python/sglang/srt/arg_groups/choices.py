@@ -72,6 +72,7 @@ QUANTIZATION_CHOICES = [
 ]
 
 ATTENTION_BACKEND_CHOICES = [
+    "headwise",
     # Common
     "triton",
     "torch_native",
@@ -124,6 +125,7 @@ DETERMINISTIC_ATTENTION_BACKEND_CHOICES = [
 ]
 
 DISAGG_TRANSFER_BACKEND_CHOICES = [
+    "shared_headwise",
     "mooncake",
     "nixl",
     "ascend",

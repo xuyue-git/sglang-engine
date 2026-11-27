@@ -4301,6 +4301,9 @@ def get_model_loader(
     load_config: LoadConfig, model_config: Optional[ModelConfig] = None
 ) -> BaseModelLoader:
     """Get a model loader based on the load format."""
+    from muxserve.flexserver.sglang_hooks import enabled, shared_weight_loader
+    if enabled():
+        return shared_weight_loader(load_config)
 
     if load_config.load_format == LoadFormat.DUMMY:
         return DummyModelLoader(load_config)

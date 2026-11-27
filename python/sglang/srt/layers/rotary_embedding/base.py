@@ -121,14 +121,10 @@ class RotaryEmbedding(BaseFusedOp):
             and not (_is_mps)
             and not (current_platform.is_out_of_tree())
         ):
-            # rotary_embedding from sglang.kernels.ops.attention.rope and vllm._custom_ops has the same implementation.
-            # TODO: Test on different devices and remove this conditional.
-            if _is_cuda:
-                from sglang.kernels.ops.attention.rope import rotary_embedding
-            elif _is_hip:
+            if _is_hip:
                 from sgl_kernel import rotary_embedding
             else:
-                from vllm._custom_ops import rotary_embedding
+                from sglang.kernels.ops.attention.rope import rotary_embedding
 
             self.use_fallback_kernel = True
             self.fallback_rotary_embedding = rotary_embedding
